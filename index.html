@@ -1,0 +1,746 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Obamnify</title>
+    <link href="https://fonts.googleapis.com/css2?family=Space+Mono:wght@400;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="styles.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
+    <script src="https://cdn.websim.com/v2/websim-socket.js"></script>
+    <script type="importmap">
+        {
+            "imports": {
+                "marked": "https://cdn.jsdelivr.net/npm/marked/lib/marked.esm.js",
+                "dompurify": "https://cdn.jsdelivr.net/npm/dompurify/dist/purify.es.min.js"
+            }
+        }
+    </script>
+</head>
+<body>
+    <!-- Performance Monitor -->
+    <div id="performanceMonitor" class="performance-monitor" style="display: none;">
+        <div class="perf-item">
+            <span>FPS: <span id="fpsCounter">--</span></span>
+        </div>
+        <div class="perf-item">
+            <span>Memory: <span id="memoryUsage">--</span> MB</span>
+        </div>
+        <div class="perf-item">
+            <span>Processing: <span id="processingTime">--</span>ms</span>
+        </div>
+    </div>
+
+    <!-- Keyboard Shortcuts Help -->
+    <div id="shortcutsOverlay" class="shortcuts-overlay" style="display: none;">
+        <div class="shortcuts-content">
+            <div class="shortcuts-header">
+                <h2>⌨️ Keyboard Shortcuts</h2>
+                <button class="modal-close" id="closeShortcuts">&times;</button>
+            </div>
+            <div class="shortcuts-list">
+                <div class="shortcut-group">
+                    <h3>File Operations</h3>
+                    <div class="shortcut-item">
+                        <kbd>Ctrl</kbd> + <kbd>O</kbd>
+                        <span>Upload Image</span>
+                    </div>
+                    <div class="shortcut-item">
+                        <kbd>Ctrl</kbd> + <kbd>S</kbd>
+                        <span>Save Result</span>
+                    </div>
+                </div>
+                <div class="shortcut-group">
+                    <h3>Controls</h3>
+                    <div class="shortcut-item">
+                        <kbd>Space</kbd>
+                        <span>Start/Stop Transformation</span>
+                    </div>
+                    <div class="shortcut-item">
+                        <kbd>R</kbd>
+                        <span>Reset to Default</span>
+                    </div>
+                    <div class="shortcut-item">
+                        <kbd>T</kbd>
+                        <span>Change Target</span>
+                    </div>
+                </div>
+                <div class="shortcut-group">
+                    <h3>View</h3>
+                    <div class="shortcut-item">
+                        <kbd>F</kbd>
+                        <span>Toggle Fullscreen</span>
+                    </div>
+                    <div class="shortcut-item">
+                        <kbd>P</kbd>
+                        <span>Toggle Performance Monitor</span>
+                    </div>
+                    <div class="shortcut-item">
+                        <kbd>?</kbd>
+                        <span>Show this help</span>
+                    </div>
+                </div>
+                <div class="shortcut-group">
+                    <h3>Navigation</h3>
+                    <div class="shortcut-item">
+                        <kbd>Esc</kbd>
+                        <span>Close Overlay/Cancel</span>
+                    </div>
+                    <div class="shortcut-item">
+                        <kbd>,</kbd>
+                        <span>Open Settings</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Fullscreen Toggle Button -->
+    <div id="fullscreenBtn" class="fullscreen-button">
+        <i class="fa-solid fa-expand"></i>
+    </div>
+
+    <!-- Quick Action Bar -->
+    <div id="quickActionBar" class="quick-action-bar">
+        <button id="quickHelp" class="quick-btn" title="Keyboard Shortcuts (?)">
+            <i class="fa-solid fa-keyboard"></i>
+        </button>
+        <button id="quickPerf" class="quick-btn" title="Performance Monitor (P)">
+            <i class="fa-solid fa-chart-line"></i>
+        </button>
+        <button id="quickPresets" class="quick-btn" title="Presets">
+            <i class="fa-solid fa-bookmark"></i>
+        </button>
+        <button id="quickUndo" class="quick-btn" title="Undo (Ctrl+Z)" disabled>
+            <i class="fa-solid fa-undo"></i>
+        </button>
+        <button id="quickRedo" class="quick-btn" title="Redo (Ctrl+Y)" disabled>
+            <i class="fa-solid fa-redo"></i>
+        </button>
+    </div>
+
+    <!-- Presets Overlay -->
+    <div id="presetsOverlay" class="presets-overlay" style="display: none;">
+        <div class="presets-content">
+            <div class="presets-header">
+                <h2>🔖 Quick Presets</h2>
+                <button class="modal-close" id="closePresets">&times;</button>
+            </div>
+            <div class="presets-grid">
+                <div class="preset-item" data-preset="high-quality">
+                    <div class="preset-icon">🎨</div>
+                    <div class="preset-name">High Quality</div>
+                    <div class="preset-desc">512px, Slow animation</div>
+                </div>
+                <div class="preset-item" data-preset="balanced">
+                    <div class="preset-icon">⚖️</div>
+                    <div class="preset-name">Balanced</div>
+                    <div class="preset-desc">256px, Normal speed</div>
+                </div>
+                <div class="preset-item" data-preset="fast">
+                    <div class="preset-icon">⚡</div>
+                    <div class="preset-name">Fast</div>
+                    <div class="preset-desc">128px, Fast animation</div>
+                </div>
+                <div class="preset-item" data-preset="mobile-optimized">
+                    <div class="preset-icon">📱</div>
+                    <div class="preset-name">Mobile Optimized</div>
+                    <div class="preset-desc">128px, Very fast</div>
+                </div>
+                <div class="preset-item" data-preset="ultra-hd">
+                    <div class="preset-icon">💎</div>
+                    <div class="preset-name">Ultra HD</div>
+                    <div class="preset-desc">1024px, Slow (Desktop only)</div>
+                </div>
+                <div class="preset-item" data-preset="gif-friendly">
+                    <div class="preset-icon">🎞️</div>
+                    <div class="preset-name">GIF Friendly</div>
+                    <div class="preset-desc">64px, Very fast</div>
+                </div>
+            </div>
+            <div class="preset-actions">
+                <button id="saveCurrentPreset" class="preset-action-btn">
+                    <i class="fa-solid fa-plus"></i> Save Current as Preset
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Drop Zone Overlay -->
+    <div id="dropZone" class="drop-zone" style="display: none;">
+        <div class="drop-zone-content">
+            <div class="drop-icon">📁</div>
+            <div class="drop-text">Drop your image here!</div>
+            <div class="drop-subtext">Supports JPG, PNG, GIF, WebP</div>
+        </div>
+    </div>
+
+    <!-- Toast Notifications Container -->
+    <div id="toastContainer" class="toast-container"></div>
+
+    <!-- Loading Screen -->
+    <div id="loadingScreen" class="loading-screen">
+        <div class="loading-content">
+            <h2>🔄 Loading Assets...</h2>
+            <div class="loading-spinner"></div>
+        </div>
+    </div>
+
+    <!-- Follow Prompt -->
+    <div id="followPrompt" class="follow-prompt" style="display: none;">
+        <div class="follow-content">
+            <h2>👋 Hey you!</h2>
+            <p>If you enjoy this project, mind giving me (cybud) a follow?</p>
+            <div class="follow-buttons">
+                <button id="followYes" class="follow-btn yes">Yes! 🚀</button>
+                <button id="followNo" class="follow-btn no">No thanks 😅</button>
+            </div>
+        </div>
+    </div>
+
+
+    <!-- Device Selector Overlay -->
+    <div id="deviceSelector" class="device-selector-overlay" style="display: none;">
+        <div class="device-selector-content">
+            <h2><i class="fa-solid fa-sliders"></i> Choose Your Experience</h2>
+            <p>Select your device type for the best Obamnify experience</p>
+            <div class="device-options">
+                <button class="device-btn" data-device="desktop">
+                    <span class="device-icon"><i class="fa-solid fa-laptop"></i></span>
+                    <span class="device-name">Desktop</span>
+                    <span class="device-desc">Full features & performance</span>
+                </button>
+                <button class="device-btn" data-device="mobile">
+                    <span class="device-icon"><i class="fa-solid fa-mobile-screen-button"></i></span>
+                    <span class="device-name">Mobile</span>
+                    <span class="device-desc">Optimized touch interface</span>
+                </button>
+                <button class="device-btn" data-device="tablet">
+                    <span class="device-icon"><i class="fa-solid fa-tablet-screen-button"></i></span>
+                    <span class="device-name">Tablet</span>
+                    <span class="device-desc">Balanced experience</span>
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Donation Button -->
+    <div id="donationBtn" class="donation-button">
+        <i class="fa-solid fa-hand-holding-dollar"></i> gimme money
+    </div>
+
+    <!-- Device Settings Button -->
+    <div id="deviceSettingsBtn" class="device-settings-button">
+        <i class="fa-solid fa-mobile-screen-button"></i>
+    </div>
+
+    <!-- Settings Button -->
+    <div id="settingsBtn" class="settings-button">
+        <i class="fa-solid fa-gear"></i>
+    </div>
+
+    <!-- News Button -->
+    <div id="newsBtn" class="news-button">
+        <i class="fa-regular fa-newspaper"></i>
+    </div>
+
+    <!-- Petition Notification -->
+    <div id="petitionNotification" class="petition-notification" style="display: none;">
+        <div class="petition-content">
+            <h2>📝 Help Me Become a Websim Admin!</h2>
+            <p>Hey there! I'm trying to become a Websim admin to help make the platform even better. Would you mind checking out my petition and signing it?</p>
+            <div class="petition-buttons">
+                <button id="petitionYes" class="petition-btn yes">Sure! 🚀</button>
+                <button id="petitionNo" class="petition-btn no">No thanks</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Announcement Notification -->
+    <div id="announcementNotification" class="announcement-notification" style="display: none;">
+        <div class="announcement-content">
+            <h2>📢 Important Update!</h2>
+            <p>From now on, <strong>Obamnify</strong> will receive little to no updates as I've lost most motivation for this project.</p>
+            <p>But if you want to play something new that <em>will</em> be getting updated, check out my newest project:</p>
+            <p><strong>"React With/Reply With"</strong> - A random phrase generator game!</p>
+            <div class="announcement-buttons">
+                <button id="announcementPlay" class="announcement-btn yes">Try New Game! 🎮</button>
+                <button id="announcementOk" class="announcement-btn no">Got it</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Settings Overlay -->
+    <div id="settingsOverlay" class="settings-overlay">
+        <div class="settings-content">
+            <div class="settings-header">
+                <h2>⚙️ Settings</h2>
+                <button class="modal-close" id="closeSettings">&times;</button>
+            </div>
+            
+            <div class="settings-section">
+                <h3>🎨 Visual Quality</h3>
+                <div class="setting-item">
+                    <div class="setting-label">Site Quality</div>
+                    <div class="setting-control">
+                        <select id="qualitySetting">
+                            <option value="low">Low (Performance)</option>
+                            <option value="medium" selected>Medium (Balanced)</option>
+                            <option value="high">High (Quality)</option>
+                        </select>
+                    </div>
+                </div>
+                <div class="setting-item">
+                    <div class="setting-label">Max Image Resolution: <span id="maxResValue">128</span>px</div>
+                    <div class="setting-control">
+                        <input type="range" id="maxResSetting" min="64" max="2048" value="128" step="16">
+                    </div>
+                </div>
+                <div class="setting-item">
+                    <div class="setting-label">Color Theme</div>
+                    <div class="setting-control">
+                        <select id="colorThemeSetting">
+                            <option value="dark">Dark (Default)</option>
+                            <option value="high-contrast">High Contrast</option>
+                            <option value="colorful">Colorful</option>
+                        </select>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="settings-section">
+                <h3>🚀 Performance</h3>
+                <div class="setting-item">
+                    <div class="setting-label">Hide UI During Animation</div>
+                    <div class="setting-control">
+                        <input type="checkbox" id="hideUISetting">
+                    </div>
+                </div>
+                <div class="setting-item">
+                    <div class="setting-label">Smooth Animations</div>
+                    <div class="setting-control">
+                        <input type="checkbox" id="smoothAnimSetting" checked>
+                    </div>
+                </div>
+                <div class="setting-item">
+                    <div class="setting-label">Auto-save Results</div>
+                    <div class="setting-control">
+                        <input type="checkbox" id="autoSaveSetting">
+                    </div>
+                </div>
+                <div class="setting-item">
+                    <div class="setting-label">Show Performance Monitor</div>
+                    <div class="setting-control">
+                        <input type="checkbox" id="showPerfMonitorSetting">
+                    </div>
+                </div>
+                <div class="setting-item">
+                    <div class="setting-label">Enable Hardware Acceleration</div>
+                    <div class="setting-control">
+                        <input type="checkbox" id="hardwareAccelSetting" checked>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="settings-section">
+                <h3>🎯 Behavior</h3>
+                <div class="setting-item">
+                    <div class="setting-label">Animation Speed: <span id="animSpeedValue">Normal</span></div>
+                    <div class="setting-control">
+                        <input type="range" id="animSpeedSetting" min="1" max="3" value="2" step="1">
+                    </div>
+                </div>
+                <div class="setting-item">
+                    <div class="setting-label">Show Progress Details</div>
+                    <div class="setting-control">
+                        <input type="checkbox" id="progressDetailsSetting" checked>
+                    </div>
+                </div>
+                <div class="setting-item">
+                    <div class="setting-label">Auto-resize Large Images</div>
+                    <div class="setting-control">
+                        <input type="checkbox" id="autoResizeSetting" checked>
+                    </div>
+                </div>
+                <div class="setting-item">
+                    <div class="setting-label">Enable Keyboard Shortcuts</div>
+                    <div class="setting-control">
+                        <input type="checkbox" id="keyboardShortcutsSetting" checked>
+                    </div>
+                </div>
+            </div>
+
+            <div class="settings-section">
+                <h3>💾 Data Management</h3>
+                <div class="setting-item">
+                    <div class="setting-label">Auto-save Work in Progress</div>
+                    <div class="setting-control">
+                        <input type="checkbox" id="autoSaveWIPSetting" checked>
+                    </div>
+                </div>
+                <div class="setting-item">
+                    <div class="setting-label">Keep History for Undo</div>
+                    <div class="setting-control">
+                        <input type="checkbox" id="keepHistorySetting" checked>
+                    </div>
+                </div>
+                <div class="setting-actions">
+                    <button id="clearHistoryBtn" class="settings-action-btn secondary">
+                        <i class="fa-solid fa-trash"></i> Clear History
+                    </button>
+                    <button id="exportSettingsBtn" class="settings-action-btn">
+                        <i class="fa-solid fa-download"></i> Export Settings
+                    </button>
+                    <button id="importSettingsBtn" class="settings-action-btn">
+                        <i class="fa-solid fa-upload"></i> Import Settings
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Add modal overlay and content -->
+    <div id="updateModal" class="modal-overlay">
+        <div class="modal-content update-modal">
+            <div class="confetti-container"></div>
+            <button class="modal-close" id="closeModal">&times;</button>
+            
+            <div class="update-modal-inner">
+                <div class="update-sidebar">
+                    <h3>Updates</h3>
+                    <div class="update-list">
+                        <div class="update-item active" data-update="v2.5">
+                            <div class="update-title">Latest Improvements!</div>
+                            <div class="update-badge new">NEW</div>
+                        </div>
+                        <div class="update-item" data-update="v2.4">
+                            <div class="update-title">Bug Fix Thanks!</div>
+                        </div>
+                        <div class="update-item" data-update="v2.3">
+                            <div class="update-title">New Characters!</div>
+                        </div>
+                        <div class="update-item" data-update="v2.2">
+                            <div class="update-title">Device Settings</div>
+                        </div>
+                        <div class="update-item" data-update="v2.1">
+                            <div class="update-title">Community Features</div>
+                        </div>
+                        <div class="update-item" data-update="v2.0">
+                            <div class="update-title">Hot Page Success</div>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="update-content">
+                    <div class="update-entry active" id="update-v2.5">
+                        <h2>🚀 Latest Quality of Life Improvements!</h2>
+                        <div class="update-body">
+                            <p>Fresh batch of improvements based on your feedback! 🙌</p>
+                            <ul>
+                                <li><strong>🎯 Animation Speed Fix:</strong> The animation speed label now properly updates when you move the slider - no more confusion!</li>
+                                <li><strong>💙 Donation Button Polish:</strong> Fixed the "gimme money" button to stay beautifully blue instead of turning red after the success animation.</li>
+                                <li><strong>📋 Petition Awareness:</strong> Added a friendly notification about my Websim admin petition - help spread the word if you'd like!</li>
+                                <li><strong>🎓 Tutorial Improvements:</strong> Enhanced the new user tutorial with better explanations and smoother flow.</li>
+                                <li><strong>📱 Device Experience:</strong> Refined device detection and selection for even better mobile/tablet optimization.</li>
+                                <li><strong>🔧 Bug Squashing:</strong> Fixed various styling issues and improved overall stability.</li>
+                                <li><strong>📱 Mobile Resolution:</strong> Mobile users now get access to maximum resolution settings just like desktop!</li>
+                            </ul>
+                            <p><strong>What's Next?</strong> Always working on new features! Drop suggestions in the comments - your feedback drives development! 💡</p>
+                            <p>Thanks for being an awesome community and helping make Obamnify better every day! 🎨✨</p>
+                        </div>
+                    </div>
+                    
+                    <div class="update-entry" id="update-v2.4">
+                        <h2>🐛 Major Bug Fix - Straight Line Issue SOLVED!</h2>
+                        <div class="update-body">
+                            <p>Huge shoutout and massive thanks to <strong>@sean</strong> from the Websim team! 🙌</p>
+                            <ul>
+                                <li><strong>🎁 Amazing Gift:</strong> Sean gifted me a Websim plan, giving me free access to Claude Sonnet!</li>
+                                <li><strong>🔧 Bug Crushed:</strong> With Sonnet's power, I completely rewrote the color detection algorithm!</li>
+                                <li><strong>🚫 No More Lines:</strong> The infamous "straight line" bug that plagued obamnifications is finally DEAD!</li>
+                                <li><strong>🎨 Better Colors:</strong> Images now transform with much more accurate color matching and distribution.</li>
+                                <li><strong>⚡ Improved Performance:</strong> Faster processing with smarter pixel mapping algorithms.</li>
+                            </ul>
+                            <p><strong>Thank you SO much @sean!</strong> This wouldn't have been possible without your generosity. The Websim community is incredible! 💖</p>
+                            <p>Now you can create beautiful Obamnifications without worrying about weird artifacts. Go wild!</p>
+                        </div>
+                    </div>
+                    
+                    <div class="update-entry" id="update-v2.3">
+                        <h2>🎭 Three New Epic Characters!</h2>
+                        <div class="update-body">
+                            <p>More amazing transformation targets have arrived!</p>
+                            <ul>
+                                <li><strong>👁️ Eye of Rah Guy:</strong> Transform into the mystical third-eye legend himself!</li>
+                                <li><strong>🏠 Property in Egypt Guy:</strong> Become the enthusiastic real estate meme master!</li>
+                                <li><strong>😲 67 Kid:</strong> Channel that pure excitement and wonder!</li>
+                            </ul>
+                            <p>These fresh faces join our growing collection of transformation targets. Each brings their own unique energy to your Obamnifications!</p>
+                            <p><strong>Pro tip:</strong> Try mixing different characters with various resolution settings for wildly different results!</p>
+                        </div>
+                    </div>
+                    
+                    <div class="update-entry" id="update-v2.2">
+                        <h2>⚙️ Device Settings Toggle</h2>
+                        <div class="update-body">
+                            <p>Small but useful update!</p>
+                            <ul>
+                                <li><strong>⚙️ Device Settings Button:</strong> You can now change your device type anytime using the gear button in the top-left corner.</li>
+                                <li><strong>📱 Better Experience:</strong> Switch between Desktop, Mobile, and Tablet modes to get the optimal interface for your device.</li>
+                                <li><strong>💾 Memory:</strong> Your device preference is remembered for future visits.</li>
+                            </ul>
+                            <p>Perfect for when you're switching between devices or want to try different interface layouts!</p>
+                        </div>
+                    </div>
+                    
+                    <div class="update-entry" id="update-v2.1">
+                        <h2>🎉 Community Features & New Characters!</h2>
+                        <div class="update-body">
+                            <p>Exciting new features are here! You can now:</p>
+                            <ul>
+                                <li><strong>🖼️ Upload Custom Targets:</strong> Transform your images into anything you want! Upload your own target images in the "Change Target" section.</li>
+                                <li><strong>👥 Share with Community:</strong> Upload your custom targets to share with other users. Build our community catalog together!</li>
+                                <li><strong>🎭 New Characters:</strong> Choose from Trump, MrBeast, Shrek, Cheems, Gigachad, and Skibidi Toilet!</li>
+                                <li><strong>🔄 Smart Filtering:</strong> All uploads are automatically filtered to keep the community safe and fun.</li>
+                                <li><strong>💾 Better Saving:</strong> Choose between PNG (lossless) or JPEG (smaller) when saving your creations.</li>
+                            </ul>
+                            <p><strong>What's next?</strong> Drop a comment and let me know what features you'd love to see. More animation styles? Video support? I'm listening!</p>
+                        </div>
+                    </div>
+                    
+                    <div class="update-entry" id="update-v2.0">
+                        <h2>🚀 Thank You for the Hot Page!</h2>
+                        <div class="update-body">
+                            <p>Thanks so much, everyone! I've never been on the hot page before, and this is absolutely incredible. I literally saw like 8 notifications pop up and totally freaked out - in the best way possible!</p>
+                            <p>This community is amazing and your support means the world to me. Seeing Obamnify get this much love has been an incredible experience.</p>
+                            <p>The hot page success motivated me to add even more features. Keep the feedback coming!</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <div class="container">
+        <header>
+            <h1>Obamnify</h1>
+            <p>Transform any image with the power of Obama</p>
+        </header>
+        
+        <div class="controls">
+            <div class="upload-section">
+                <label for="imageUpload" class="upload-btn" id="uploadLabel">
+                    <i class="fa-solid fa-upload"></i> Upload Image
+                    <input type="file" id="imageUpload" accept="image/*" hidden>
+                </label>
+                <div class="upload-hint">or drag & drop here</div>
+            </div>
+            
+            <div class="upload-section">
+                <button id="changeTargetBtn" class="upload-btn secondary">
+                    Change Target
+                </button>
+                <button id="revertBtn" class="upload-btn tertiary" style="display: none;">
+                    Revert to Obama
+                </button>
+            </div>
+            
+            <div class="resolution-section">
+                <label for="resolution">Resolution: <span id="resolutionValue">64</span>px</label>
+                <div class="resolution-controls">
+                    <input type="range" id="resolution" min="16" max="128" value="64" step="8">
+                    <button id="defaultResBtn" class="default-btn" title="Reset to default (64px)">Default</button>
+                </div>
+            </div>
+            
+            <div class="resolution-section">
+                <label for="animationSpeed">Animation Speed: <span id="mainAnimSpeedValue">Normal</span></label>
+                <input type="range" id="animationSpeed" min="1" max="5" value="3" step="1">
+            </div>
+            
+            <button id="obamnifyBtn" disabled>
+                <i class="fa-solid fa-magic-wand-sparkles"></i> Obamnify!
+            </button>
+        </div>
+        
+        <!-- Target Selection Sidebar -->
+        <div id="targetSidebar" class="target-sidebar">
+            <div class="sidebar-content">
+                <div class="sidebar-header">
+                    <h3>Select Target</h3>
+                    <button id="closeSidebar" class="close-btn">&times;</button>
+                </div>
+                
+                <div class="sidebar-tabs">
+                    <button class="tab-btn active" data-tab="catalog">Catalog</button>
+                    <button class="tab-btn" data-tab="upload">Upload Custom</button>
+                    <button class="tab-btn" data-tab="share">Share Images</button>
+                </div>
+                
+                <div id="catalogTab" class="tab-content active">
+                    <div class="target-grid">
+                        <div class="target-option" data-image="./Obamna.png">
+                            <img src="./Obamna.png" alt="Obama">
+                            <span>Obama</span>
+                        </div>
+                        <div class="target-option" data-image="./trump.png">
+                            <img src="./trump.png" alt="Trump">
+                            <span>Trump</span>
+                        </div>
+                        <div class="target-option" data-image="./mrbeast.png">
+                            <img src="./mrbeast.png" alt="MrBeast">
+                            <span>MrBeast</span>
+                        </div>
+                        <div class="target-option" data-image="./shrek.png">
+                            <img src="./shrek.png" alt="Shrek">
+                            <span>Shrek</span>
+                        </div>
+                        <div class="target-option" data-image="./cheems.png">
+                            <img src="./cheems.png" alt="Cheems">
+                            <span>Cheems</span>
+                        </div>
+                        <div class="target-option" data-image="./gigachad.png">
+                            <img src="./gigachad.png" alt="Gigachad">
+                            <span>Gigachad</span>
+                        </div>
+                        <div class="target-option" data-image="./skibidi.png">
+                            <img src="./skibidi.png" alt="Skibidi">
+                            <span>Skibidi</span>
+                        </div>
+                        <div class="target-option" data-image="./eye of rah guy.png">
+                            <img src="./eye of rah guy.png" alt="Eye of Rah Guy">
+                            <span>Eye of Rah</span>
+                        </div>
+                        <div class="target-option" data-image="./property in egypt.png">
+                            <img src="./property in egypt.png" alt="Property Guy">
+                            <span>Property Guy</span>
+                        </div>
+                        <div class="target-option" data-image="./67 kid.png">
+                            <img src="./67 kid.png" alt="67 Kid">
+                            <span>67 Kid</span>
+                        </div>
+                        <div class="target-option" data-image="./NurmaliaSr.png">
+                            <img src="./NurmaliaSr.png" alt="Me (Roblox)">
+                            <span>Me (Roblox)</span>
+                    </div>
+                </div>
+                
+                <div id="uploadTab" class="tab-content">
+                    <div class="upload-custom">
+                        <label for="customTargetUpload" class="upload-custom-btn">
+                            Upload Your Image
+                            <input type="file" id="customTargetUpload" accept="image/*" hidden>
+                        </label>
+                        <div class="upload-info">
+                            <p>⚠️ Images are automatically filtered for appropriate content</p>
+                            <p>Supported formats: JPG, PNG, GIF</p>
+                        </div>
+                        <div id="uploadStatus" class="upload-status"></div>
+                    </div>
+                </div>
+                
+                <div id="shareTab" class="tab-content">
+                    <div class="share-images">
+                        <div class="share-upload">
+                            <label for="shareImageUpload" class="upload-custom-btn">
+                                Share Your Image
+                                <input type="file" id="shareImageUpload" accept="image/*" hidden>
+                            </label>
+                            <div class="upload-info">
+                                <p>📤 Upload an image to share with the community</p>
+                                <p>Your image will be added to the catalog for others to use</p>
+                            </div>
+                            <div id="shareUploadStatus" class="upload-status"></div>
+                        </div>
+                        
+                        <div class="community-images">
+                            <h4>Community Uploads</h4>
+                            <div id="communityGrid" class="target-grid">
+                                <p class="no-images">No community images yet. Be the first to share!</p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <div id="sidebarOverlay" class="sidebar-overlay"></div>
+        
+        <div class="canvas-container">
+            <div class="canvas-preview">
+                <div class="canvas-wrapper">
+                    <canvas id="sourceCanvas"></canvas>
+                    <div class="canvas-overlay">
+                        <div class="zoom-controls">
+                            <button class="zoom-btn" id="zoomIn"><i class="fa-solid fa-plus"></i></button>
+                            <button class="zoom-btn" id="zoomOut"><i class="fa-solid fa-minus"></i></button>
+                            <button class="zoom-btn" id="zoomReset"><i class="fa-solid fa-expand-arrows-alt"></i></button>
+                        </div>
+                    </div>
+                </div>
+                <div class="canvas-wrapper">
+                    <canvas id="targetCanvas"></canvas>
+                    <div class="canvas-overlay">
+                        <div class="zoom-controls">
+                            <button class="zoom-btn" id="targetZoomIn"><i class="fa-solid fa-plus"></i></button>
+                            <button class="zoom-btn" id="targetZoomOut"><i class="fa-solid fa-minus"></i></button>
+                            <button class="zoom-btn" id="targetZoomReset"><i class="fa-solid fa-expand-arrows-alt"></i></button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <div class="canvas-wrapper main-canvas">
+                <canvas id="outputCanvas"></canvas>
+                <div class="canvas-overlay">
+                    <div class="zoom-controls main-zoom">
+                        <button class="zoom-btn" id="outputZoomIn"><i class="fa-solid fa-plus"></i></button>
+                        <button class="zoom-btn" id="outputZoomOut"><i class="fa-solid fa-minus"></i></button>
+                        <button class="zoom-btn" id="outputZoomReset"><i class="fa-solid fa-expand-arrows-alt"></i></button>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <!-- Enhanced Progress Section -->
+        <div class="progress-section">
+            <div class="progress-bar">
+                <div class="progress-fill"></div>
+                <div class="progress-percentage">0%</div>
+            </div>
+            <p class="progress-text">Ready to Obamnify</p>
+            <div class="progress-details" style="display: none;">
+                <div class="detail-item">
+                    <span>Pixels processed: <span id="pixelsProcessed">0</span></span>
+                </div>
+                <div class="detail-item">
+                    <span>Time remaining: <span id="timeRemaining">--</span></span>
+                </div>
+                <div class="detail-item">
+                    <span>Speed: <span id="processingSpeed">--</span> px/s</span>
+                </div>
+            </div>
+        </div>
+        
+        <!-- Enhanced Result Actions -->
+        <div class="result-actions" id="resultActions" style="display: none;">
+            <button id="saveBtn" class="action-btn primary">
+                <i class="fa-solid fa-download"></i> Save Image
+            </button>
+            <button id="commentBtn" class="action-btn secondary">
+                <i class="fa-solid fa-share"></i> Share Result
+            </button>
+            <button id="copyBtn" class="action-btn tertiary">
+                <i class="fa-solid fa-copy"></i> Copy to Clipboard
+            </button>
+            <button id="newTransformBtn" class="action-btn tertiary">
+                <i class="fa-solid fa-plus"></i> New Transform
+            </button>
+        </div>
+    </div>
+
+    <!-- Hidden file input for settings import -->
+    <input type="file" id="settingsFileInput" accept=".json" style="display: none;">
+
+    <script type="module" src="script.js"></script>
+</body>
+</html>
